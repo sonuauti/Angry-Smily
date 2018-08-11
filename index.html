@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+    border:1px solid #d3d3d3;
+    background-color: #f1f1f1;
+}
+</style>
+</head>
+<body onload="startGame()" style="text-align: center;">
+<script>
+
+var myGamePiece;
+var myObstacles = [];
+var myScore;
+var timer;
+var scoreCount=0;
+var w = window.innerWidth;
+var h = window.innerHeight;
+if (w>500) {w=500;}
+if (h>400) {h=400;}
+var cwidth=w;
+//console.log(w);
+function startGame() {
+    setupControl();
+    myGamePiece = new component(30, 30, "smiley.gif", 10, 120, "image");
+    //myGamePiece = new component(30, 30, "gold", 10, 120);
+    myGamePiece.gravity = 0.05;
+    myScore = new component("24px", "Consolas", "red", cwidth-80, 30, "text");
+    myGameArea.start();
+}
+
+var myGameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = cwidth;
+        this.canvas.height = h-100;
+        this.context = this.canvas.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo = 0;
+        this.interval = setInterval(updateGameArea, 20);
+        timer=this.interval;
+        },
+    clear : function() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+}
+
+function component(width, height, color, x, y, type) {
+    this.type = type;
+    this.score = 0;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;    
+    this.x = x;
+    this.y = y;
+    this.gravity = 0;
+    this.gravitySpeed = 0;
+    this.mycolor=color;
+
+    if (type == "image") {
+        this.image = new Image();
+        this.image.src = this.mycolor;
+    }
+
+    this.update = function() {
+        ctx = myGameArea.context;
+        if (type == "image") {
+            ctx.drawImage(this.image, 
+            this.x, 
+            this.y,
+            this.width, this.height);
+        }else if (this.type == "text") {
+            ctx.font = this.width + " " + this.height;
+            ctx.fillStyle = this.mycolor;
+            ctx.fillText(this.text, this.x, this.y);
+        }else if(type!="image" && type!="text") {
+            ctx.fillStyle = this.mycolor;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+    this.newPos = function() {
+        this.gravitySpeed += this.gravity;
+        this.x += this.speedX;
+        this.y += this.speedY + this.gravitySpeed;
+        this.hitBottom();
+    }
+    this.hitBottom = function() {
+        var rockbottom = myGameArea.canvas.height - this.height;
+        if (this.y > rockbottom) {
+            this.y = rockbottom;
+            this.gravitySpeed = 0;
+        }
+    }
+    this.crashWith = function(otherobj) {
+        var myleft = this.x;
+        var myright = this.x + (this.width);
+        var mytop = this.y;
+        var mybottom = this.y + (this.height);
+        var otherleft = otherobj.x;
+        var otherright = otherobj.x + (otherobj.width);
+        var othertop = otherobj.y;
+        var otherbottom = otherobj.y + (otherobj.height);
+        var crash = true;
+        if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+            crash = false;
+        }
+        return crash;
+    }
+}
+
+function updateGameArea() {
+    var x, height, gap, minHeight, maxHeight, minGap, maxGap;
+    for (i = 0; i < myObstacles.length; i += 1) {
+        if (myGamePiece.crashWith(myObstacles[i])) {
+            //console.log("crashed !");
+            //console.log(myObstacles[i]);
+            if(myObstacles[i].mycolor=="pink"){
+               scoreCount++;
+               //console.log('got credit');
+            }else{
+                    myGamePiece.image.src="angry.gif";
+                    myGamePiece.update();
+                    showfinalScore(scoreCount*10);
+                    clearInterval(timer);        
+                return;
+            }
+        } 
+    }
+    myGameArea.clear();
+    myGameArea.frameNo += 1;
+    if (myGameArea.frameNo == 1 || everyinterval(100)) {
+        x = myGameArea.canvas.width;
+        minHeight = 20;
+        maxHeight = 180;
+        height = Math.floor(Math.random()*(maxHeight-minHeight+1)+minHeight);
+        minGap = 60;
+        maxGap = 180;
+
+        gap = Math.floor(Math.random()*(maxGap-minGap+1)+minGap);
+        topbar="yellowgreen";
+        bottombar="pink";
+        if (height>(x - height - gap)) {
+            topbar="yellowgreen";
+            bottombar="pink";
+        }else{
+            topbar="pink";
+            bottombar="yellowgreen";
+        }
+        myObstacles.push(new component(10, height, topbar, x, 0));
+        myObstacles.push(new component(10, x - height - gap, bottombar, x, height + gap));
+    }
+    for (i = 0; i < myObstacles.length; i += 1) {
+        myObstacles[i].x += -1;
+        myObstacles[i].update();
+    }
+    myScore.text=""+scoreCount*10; //""+myGameArea.frameNo;
+    myScore.update();
+    myGamePiece.newPos();
+    myGamePiece.update();
+}
+
+function everyinterval(n) {
+    if ((myGameArea.frameNo / n) % 1 == 0) {return true;}
+    return false;
+}
+
+function showfinalScore(score){
+    //gameover
+    myScore.text="Game Over";
+    myScore.width = "40px";
+    myScore.x = myScore.x/3;
+    myScore.y = myScore.x;
+    myScore.mycolor="red";
+   // myGameArea.clear();
+    myScore.update();
+    myScore.text=""+score;
+    myScore.x = myScore.x;
+    myScore.y = myScore.y+40;
+    myScore.mycolor="red";
+    myScore.update();
+    //update highest score
+    console.log(score);
+    if (!window.localStorage['myScore']) {
+        window.localStorage['myScore']=score;    
+    }else if(parseInt(window.localStorage['myScore'])<score){
+        window.localStorage['myScore']=score;    
+    }
+    //console.log("your score "+window.localStorage['myScore']);
+    document.getElementById("lastscore").innerHTML="Your last high "+window.localStorage['myScore'];
+    
+}
+
+function accelerate(n) {
+    myGamePiece.gravity = n;
+}
+
+function resetGame(){
+    clearInterval(timer);
+    scoreCount=0;
+    myObstacles = [];
+    startGame();
+}
+
+function setupControl(){
+
+    var actionBtn=document.getElementById("actionbtn");
+    // Add event listeners
+    actionBtn.addEventListener("mousedown", onPointerDown);
+    actionBtn.addEventListener("pointerdown", onPointerDown);
+    actionBtn.addEventListener("touchstart", onPointerDown);
+
+    actionBtn.addEventListener("mouseup", onPointerUp);
+    actionBtn.addEventListener("pointerup", onPointerUp);
+    actionBtn.addEventListener("touchend", onPointerUp);
+
+    function onPointerDown(event){accelerate(-0.2);}
+    function onPointerUp(event){ accelerate(0.05);}
+}
+
+</script>
+<br>
+<div id="lastscore" style="text-align: center;"></div>
+<button id="actionbtn" style="width: 160px;height: 40px;font-size: 20px;background: gold;color: #fff;border: none;border-radius: 12px;">JUMP</button>
+<button onclick="resetGame()"  style="width: 160px;height: 40px;font-size: 20px;background: #FF0101;color: #fff;border: none;border-radius: 12px;">RESET</button>
+    <p style="text-align: center;">Tap and hold jump button to stay in air, hit pink bar to get points, enjoy !</p>
+    <p style="text-align: center;font-size: 12px;">Inspired and derived from w3c, modified with <span style="font-size:16px;color: #ff0000;">&hearts;</span> by <a style="text-decoration: none;" href="https://www.instagram.com/matki_paw/">@sonuauti</a></p>
+</body>
+</html>
+
