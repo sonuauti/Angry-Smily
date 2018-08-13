@@ -2,7 +2,7 @@
   Angry Smily is JavaScript HTML5 based Game in less than 13kb 
 
 ## Live Demo
-  hit the link -> http://sonuauti.com/game/angrysmily
+  Play it here -> [Game Demo](http://bit.ly/AngrySmily)
   
   Inspired and derived from w3c with &hearts;
   
