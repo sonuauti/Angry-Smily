@@ -1,13 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html lang="en"> 
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <style>
 canvas {
     border:1px solid #d3d3d3;
     background-color: #f1f1f1;
 }
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
+
+.bttonpress{
+    background: gray;
+}
+.btnnormal{
+    background: gold;
+}
 </style>
+<title>Angry Smily | Game by @SonuAuti</title>
 </head>
 <body onload="startGame()" style="text-align: center;">
 <script>
@@ -22,9 +42,18 @@ var h = window.innerHeight;
 if (w>500) {w=500;}
 if (h>400) {h=400;}
 var cwidth=w;
+
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    window.actx = new window.AudioContext();
+    //create nodes
+    window.osc=""; //create in event listener so we can press the button more than once
+    window.masterGain = window.actx.createGain();
+    window.analyser = window.actx.createAnalyser();
+
 //console.log(w);
 function startGame() {
     setupControl();
+    setupSound();
     myGamePiece = new component(30, 30, "smiley.gif", 10, 120, "image");
     //myGamePiece = new component(30, 30, "gold", 10, 120);
     myGamePiece.gravity = 0.05;
@@ -85,7 +114,12 @@ function component(width, height, color, x, y, type) {
     this.newPos = function() {
         this.gravitySpeed += this.gravity;
         this.x += this.speedX;
-        this.y += this.speedY + this.gravitySpeed;
+        if (Math.abs(this.y)<500) {
+           this.y += this.speedY + this.gravitySpeed;
+        }else{
+            this.y = this.speedY + this.gravitySpeed;
+        }
+        //console.log(this.x+","+this.y);
         this.hitBottom();
     }
     this.hitBottom = function() {
@@ -117,15 +151,21 @@ function updateGameArea() {
     for (i = 0; i < myObstacles.length; i += 1) {
         if (myGamePiece.crashWith(myObstacles[i])) {
             //console.log("crashed !");
-            //console.log(myObstacles[i]);
-            if(myObstacles[i].mycolor=="pink"){
-               scoreCount++;
+            
+            if(myObstacles[i].mycolor=="pink" || myObstacles[i].mycolor=="gold"){
+                scoreCount++;
+               if (myObstacles[i].height<=27) {
+                 scoreCount++;
+               }
+               console.log(myObstacles[i].height);
                //console.log('got credit');
             }else{
+                    playsound();
                     myGamePiece.image.src="angry.gif";
                     myGamePiece.update();
+                    clearInterval(timer);      
                     showfinalScore(scoreCount*10);
-                    clearInterval(timer);        
+                      
                 return;
             }
         } 
@@ -150,8 +190,13 @@ function updateGameArea() {
             topbar="pink";
             bottombar="yellowgreen";
         }
+        var nh=(x-height-gap);
+        if (height<=27 && topbar=="pink") {
+            topbar="gold"
+        }else if(nh<=27 && bottombar=="pink"){bottombar="gold";}
+
         myObstacles.push(new component(10, height, topbar, x, 0));
-        myObstacles.push(new component(10, x - height - gap, bottombar, x, height + gap));
+        myObstacles.push(new component(10, nh, bottombar, x, height + gap));
     }
     for (i = 0; i < myObstacles.length; i += 1) {
         myObstacles[i].x += -1;
@@ -170,6 +215,7 @@ function everyinterval(n) {
 
 function showfinalScore(score){
     //gameover
+    // myGameArea.clear();
     myScore.text="Game Over";
     myScore.width = "40px";
     myScore.x = myScore.x/3;
@@ -190,7 +236,10 @@ function showfinalScore(score){
         window.localStorage['myScore']=score;    
     }
     //console.log("your score "+window.localStorage['myScore']);
-    document.getElementById("lastscore").innerHTML="Your last high "+window.localStorage['myScore'];
+    var sharelink='<a class="noselect" style="text-decoration:none;font-size:14px;color:gray;" href="whatsapp://send?text=I scored '+window.localStorage['myScore']+' playing angry smily at http://bit.ly/AngrySmily" data-action="share/whatsapp/share">share on WhatsApp</a>';
+    document.getElementById("lastscore").innerHTML="Your last high "+window.localStorage['myScore'] +" &middot "+sharelink;
+
+    stopsound();
     
 }
 
@@ -217,15 +266,51 @@ function setupControl(){
     actionBtn.addEventListener("pointerup", onPointerUp);
     actionBtn.addEventListener("touchend", onPointerUp);
 
-    function onPointerDown(event){accelerate(-0.2);}
-    function onPointerUp(event){ accelerate(0.05);}
+    function onPointerDown(event){
+        accelerate(-0.2);
+        actionBtn.style.background="gray";
+    }
+    function onPointerUp(event){
+        accelerate(0.05);
+        actionBtn.style.background="gold";
+        
+    }
+}
+
+function setupSound(){
+    //routing
+    window.masterGain.connect(window.analyser);
+    window.analyser.connect(window.actx.destination);
+    window.osc = window.actx.createOscillator();
+    window.osc.frequency.value = 500;
+    imag=new Float32Array([4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,7,7,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,14,14,14,14,14,14,14,14,14,14,14,14,14,15,15,15,15,15,15,15,15,15,15,15,15,16,16,16,16,16,16,16,16,16,16,16,16,17,17,17,17,17,17,17,17,17,17,17,17,17,18,18,18,18,18,18,18,18,18,18,18,18,18,18,18,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,22,22,22,23]);
+    var real = new Float32Array(imag.length);  // cos
+    var customWave = window.actx.createPeriodicWave(real, imag);  // cos,sine
+    osc.setPeriodicWave(customWave);   
+}
+
+function playsound(){
+    window.osc.connect(masterGain);
+    if(window.osc){
+       window.osc.start(0);
+        isPlaying = true;
+    }
+}
+
+function stopsound(){
+    if (isPlaying && osc) {
+        setTimeout(function(){
+            window.osc.stop(0);    
+        },500);
+        
+    }
 }
 
 </script>
 <br>
-<div id="lastscore" style="text-align: center;"></div>
-<button id="actionbtn" style="width: 160px;height: 40px;font-size: 20px;background: gold;color: #fff;border: none;border-radius: 12px;">JUMP</button>
-<button onclick="resetGame()"  style="width: 160px;height: 40px;font-size: 20px;background: #FF0101;color: #fff;border: none;border-radius: 12px;">RESET</button>
+<div id="lastscore" style="text-align: center;margin-bottom: 4px;"></div>
+<button id="actionbtn" class="noselect" style="text-decoration: none; width: 160px;height: 40px;font-size: 20px;background: gold;color: #fff;border: none;border-radius: 12px;">JUMP</button>
+<button onclick="resetGame()" class="noselect" style="text-decoration: none; width: 160px;height: 40px;background:#FF0101; font-size: 20px;color: #fff;border: none;border-radius: 12px;">RESET</button>
     <p style="text-align: center;">Tap and hold jump button to stay in air, hit pink bar to get points, enjoy !</p>
     <p style="text-align: center;font-size: 12px;">Inspired and derived from w3c, modified with <span style="font-size:16px;color: #ff0000;">&hearts;</span> by <a style="text-decoration: none;" href="https://www.instagram.com/matki_paw/">@sonuauti</a></p>
 </body>
